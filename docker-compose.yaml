@@ -1,0 +1,56 @@
+version: '3.9'
+
+services:
+  db:
+    container_name: mysql-container
+    image: mysql:8.0.40-oraclelinux9
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: mysql123
+      MYSQL_DATABASE: school
+    volumes:
+      - mysql-data:/var/lib/mysql
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-pmysql123"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    container_name: backend
+    build:
+      context: backend/
+    image: backend-image
+    restart: always
+    ports:
+      - "3500:3500"
+    environment:
+      USE_SSM: "false"
+      host: db
+      user: root
+      password: mysql123
+      database: school
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    container_name: frontend
+    build:
+      context: frontend/
+      args:
+        REACT_APP_API_BASE_URL: http://localhost:3500
+    image: frontend-image
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      backend:
+        condition: service_started
+    environment:
+      NODE_ENV: production
+
+volumes:
+  mysql-data:
