@@ -12,10 +12,7 @@ const ssm = new SSMClient({ region: REGION });
 
 let db;
 
-/* ------------------ FETCH DB CONFIG FROM SSM ------------------ */
-
 async function getDBConfig() {
-  // If running locally, use env vars directly (no SSM)
   if (process.env.USE_SSM !== 'true') {
     return {
       host: process.env.host,
@@ -48,8 +45,6 @@ async function getDBConfig() {
   return params;
 }
 
-/* ------------------ CREATE DATABASE IF NOT EXISTS ------------------ */
-
 async function ensureDatabaseExists(config) {
   const conn = await mysql.createConnection({
     host: config.host,
@@ -60,8 +55,6 @@ async function ensureDatabaseExists(config) {
   await conn.end();
   console.log('✅ Database verified');
 }
-
-/* ------------------ CONNECT TO DB WITH RETRY ------------------ */
 
 async function connectWithRetry(retries = 10, delay = 3000) {
   for (let i = 1; i <= retries; i++) {
@@ -91,8 +84,6 @@ async function connectWithRetry(retries = 10, delay = 3000) {
   }
 }
 
-/* ------------------ TABLE CREATION ------------------ */
-
 async function ensureTables(db) {
   await db.query(`
     CREATE TABLE IF NOT EXISTS student (
@@ -115,13 +106,13 @@ async function ensureTables(db) {
   console.log('✅ Tables ready');
 }
 
-/* ------------------ HEALTH ROUTES (for AWS ALB) ------------------ */
+/* ------------------ HEALTH ROUTES ------------------ */
 
-app.get('/health', (req, res) => {
+app.get('/api/health', (req, res) => {
   res.status(200).json({ status: 'ok', service: 'backend', uptime: process.uptime() });
 });
 
-app.get('/health/db', async (req, res) => {
+app.get('/api/health/db', async (req, res) => {
   try {
     const [rows] = await db.query('SELECT 1 as db_up');
     res.status(200).json({ status: 'ok', database: 'connected', result: rows[0] });
@@ -132,34 +123,34 @@ app.get('/health/db', async (req, res) => {
 
 /* ------------------ ROUTES ------------------ */
 
-app.get('/', async (req, res) => {
+app.get('/api/', async (req, res) => {
   const [rows] = await db.query('SELECT * FROM student');
   res.json({ message: 'Backend running 🚀', data: rows });
 });
 
-app.get('/student', async (req, res) => {
+app.get('/api/student', async (req, res) => {
   const [rows] = await db.query('SELECT * FROM student');
   res.json(rows);
 });
 
-app.get('/teacher', async (req, res) => {
+app.get('/api/teacher', async (req, res) => {
   const [rows] = await db.query('SELECT * FROM teacher');
   res.json(rows);
 });
 
-app.post('/addstudent', async (req, res) => {
+app.post('/api/addstudent', async (req, res) => {
   const { name, rollNo, class: cls } = req.body;
   await db.query('INSERT INTO student (name, roll_number, class) VALUES (?, ?, ?)', [name, rollNo, cls]);
   res.json({ message: 'Student added successfully' });
 });
 
-app.post('/addteacher', async (req, res) => {
+app.post('/api/addteacher', async (req, res) => {
   const { name, subject, class: cls } = req.body;
   await db.query('INSERT INTO teacher (name, subject, class) VALUES (?, ?, ?)', [name, subject, cls]);
   res.json({ message: 'Teacher added successfully' });
 });
 
-app.delete('/student/:id', async (req, res) => {
+app.delete('/api/student/:id', async (req, res) => {
   try {
     const [result] = await db.query('DELETE FROM student WHERE id = ?', [req.params.id]);
     if (result.affectedRows === 0) return res.status(404).json({ message: 'Student not found' });
@@ -169,11 +160,11 @@ app.delete('/student/:id', async (req, res) => {
   }
 });
 
-app.delete('/teacher/:id', async (req, res) => {
+app.delete('/api/teacher/:id', async (req, res) => {
   try {
     const [result] = await db.query('DELETE FROM teacher WHERE id = ?', [req.params.id]);
     if (result.affectedRows === 0) return res.status(404).json({ message: 'Teacher not found' });
-    res.json({ message: 'Teacher deleted successfully' });
+    res.json({ message: 'Teacher added successfully' });
   } catch (err) {
     res.status(500).json({ error: 'Failed to delete teacher' });
   }
