@@ -39,4 +39,4 @@ jobs:
           context: backend
           file: backend/Dockerfile
           push: true
-          tags: ${{ secrets.ECR_REGISTRY }}/backend:${{ github.run_number }}
+          tags: 056026787582.dkr.ecr.us-east-1.amazonaws.com/production-backend:${{ github.run_number }}
